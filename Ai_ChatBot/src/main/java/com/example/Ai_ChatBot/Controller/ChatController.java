@@ -17,7 +17,7 @@ public ChatController(ChatService chatService){
     this.chatService=chatService;
 }
     @PostMapping("/chat")
-    ResponseEntity<?>UserChat(@RequestBody ChatRequest request){
+    ResponseEntity <?> userChat(@RequestBody ChatRequest request){
      String aiReplay=chatService.chat(request.getMessage());
      return ResponseEntity.ok(aiReplay);
     }
