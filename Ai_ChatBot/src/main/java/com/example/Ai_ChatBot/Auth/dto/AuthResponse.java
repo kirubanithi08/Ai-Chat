@@ -1,7 +1,5 @@
 package com.example.Ai_ChatBot.Auth.dto;
 
-
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

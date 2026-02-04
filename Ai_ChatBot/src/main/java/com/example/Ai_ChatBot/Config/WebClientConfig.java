@@ -17,7 +17,7 @@ public class WebClientConfig {
     public WebClient geminiWebClient() {
 
         HttpClient httpClient = HttpClient.create()
-                .protocol(HttpProtocol.HTTP11) // 🔴 CRITICAL
+                .protocol(HttpProtocol.HTTP11)
                 .responseTimeout(Duration.ofSeconds(30))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000);
 
