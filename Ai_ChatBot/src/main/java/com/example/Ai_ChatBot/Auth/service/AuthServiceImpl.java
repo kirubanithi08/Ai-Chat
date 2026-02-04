@@ -4,7 +4,7 @@ package com.example.Ai_ChatBot.Auth.service;
 import com.example.Ai_ChatBot.Auth.dto.AuthResponse;
 import com.example.Ai_ChatBot.Auth.dto.LoginRequest;
 import com.example.Ai_ChatBot.Auth.dto.RegisterRequest;
-import com.example.Ai_ChatBot.Security.config.JwtTokenProvider;
+import com.example.Ai_ChatBot.Security.JwtTokenProvider;
 import com.example.Ai_ChatBot.User.entity.User;
 import com.example.Ai_ChatBot.User.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

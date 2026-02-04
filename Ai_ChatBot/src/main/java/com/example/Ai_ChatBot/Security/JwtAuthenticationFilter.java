@@ -1,4 +1,4 @@
-package com.example.Ai_ChatBot.Security.config;
+package com.example.Ai_ChatBot.Security;
 
 
 import jakarta.servlet.*;
