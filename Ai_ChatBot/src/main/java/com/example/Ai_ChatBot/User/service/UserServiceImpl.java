@@ -1,11 +1,11 @@
 package com.example.Ai_ChatBot.User.service;
 
-import com.example.Ai_ChatBot.User.entity.User;
 import com.example.Ai_ChatBot.User.dto.UserResponse;
 import com.example.Ai_ChatBot.User.dto.UserUpdateRequest;
+import com.example.Ai_ChatBot.User.entity.User;
 import com.example.Ai_ChatBot.User.repository.UserRepository;
+import com.example.Ai_ChatBot.Common.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,26 +16,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse getCurrentUser() {
-        User user = getAuthenticatedUser();
+        User user = SecurityUtils.getCurrentUser();
         return mapToResponse(user);
     }
 
     @Override
     public UserResponse updateCurrentUser(UserUpdateRequest request) {
-        User user = getAuthenticatedUser();
+        User user = SecurityUtils.getCurrentUser();
+
         user.setName(request.getName());
         userRepository.save(user);
+
         return mapToResponse(user);
     }
 
-    /* ---------- Helpers ---------- */
-
-    private User getAuthenticatedUser() {
-        return (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-    }
 
     private UserResponse mapToResponse(User user) {
         return UserResponse.builder()
@@ -46,4 +40,3 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 }
-

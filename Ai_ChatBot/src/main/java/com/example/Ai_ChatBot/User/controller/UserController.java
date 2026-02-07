@@ -3,6 +3,7 @@ package com.example.Ai_ChatBot.User.controller;
 import com.example.Ai_ChatBot.User.dto.UserResponse;
 import com.example.Ai_ChatBot.User.dto.UserUpdateRequest;
 import com.example.Ai_ChatBot.User.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ public class UserController {
 
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateCurrentUser(
-            @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest request
     ) {
         return ResponseEntity.ok(userService.updateCurrentUser(request));
     }
