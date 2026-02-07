@@ -8,7 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 public final class SecurityUtils {
 
     private SecurityUtils() {
-        // prevent instantiation
+
     }
 
 
