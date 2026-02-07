@@ -7,9 +7,9 @@ import com.example.Ai_ChatBot.Chat.Entity.ChatMessage;
 import com.example.Ai_ChatBot.Chat.Entity.ChatSession;
 import com.example.Ai_ChatBot.Chat.Repository.ChatMessageRepository;
 import com.example.Ai_ChatBot.User.entity.User;
+import com.example.Ai_ChatBot.Common.SecurityUtils;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +28,7 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatResponse chat(ChatRequest request) {
 
-        User user = getAuthenticatedUser();
+        User user = SecurityUtils.getCurrentUser();
 
         ChatSession session = getOrCreateSession(request, user);
 
@@ -67,13 +67,25 @@ public class ChatServiceImpl implements ChatService {
     }
 
 
-
     private ChatSession getOrCreateSession(
             ChatRequest request,
             User user
     ) {
+
         if (request.getSessionId() != null) {
-            return entityManager.find(ChatSession.class, request.getSessionId());
+
+            ChatSession session =
+                    entityManager.find(ChatSession.class, request.getSessionId());
+
+            if (session == null) {
+                throw new IllegalStateException("Chat session not found");
+            }
+
+            if (!session.getUser().getId().equals(user.getId())) {
+                throw new IllegalStateException("Access denied to chat session");
+            }
+
+            return session;
         }
 
         ChatSession session = ChatSession.builder()
@@ -85,12 +97,4 @@ public class ChatServiceImpl implements ChatService {
         entityManager.persist(session);
         return session;
     }
-
-    private User getAuthenticatedUser() {
-        return (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-    }
 }
-
