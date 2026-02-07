@@ -1,6 +1,5 @@
 package com.example.Ai_ChatBot.Ai.dto;
 
-
 import lombok.*;
 
 import java.util.List;
