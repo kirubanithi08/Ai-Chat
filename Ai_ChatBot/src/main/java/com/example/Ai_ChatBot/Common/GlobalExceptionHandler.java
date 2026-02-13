@@ -1,5 +1,8 @@
 package com.example.Ai_ChatBot.Common;
 
+import com.example.Ai_ChatBot.Common.exceptions.EmailAlreadyExistsException;
+import com.example.Ai_ChatBot.Common.exceptions.InvalidCredentialsException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,5 +25,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(401)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<?> handleEmailExists(EmailAlreadyExistsException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<?> handleInvalidLogin(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleGeneral(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Something went wrong"));
     }
 }
