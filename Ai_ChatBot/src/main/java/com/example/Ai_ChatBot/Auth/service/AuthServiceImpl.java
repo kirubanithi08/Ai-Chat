@@ -3,12 +3,15 @@ package com.example.Ai_ChatBot.Auth.service;
 import com.example.Ai_ChatBot.Auth.dto.AuthResponse;
 import com.example.Ai_ChatBot.Auth.dto.LoginRequest;
 import com.example.Ai_ChatBot.Auth.dto.RegisterRequest;
+import com.example.Ai_ChatBot.Common.exceptions.EmailAlreadyExistsException;
+import com.example.Ai_ChatBot.Common.exceptions.InvalidCredentialsException;
 import com.example.Ai_ChatBot.Security.JwtTokenProvider;
 import com.example.Ai_ChatBot.User.entity.User;
 import com.example.Ai_ChatBot.User.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,20 +28,20 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalStateException("Email already registered");
+            throw new EmailAlreadyExistsException("Email already registered");
         }
 
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                // no roles yet
                 .build();
 
         userRepository.save(user);
 
         String token = jwtTokenProvider.generateToken(user.getEmail());
-        return new AuthResponse(token);
+
+        return new AuthResponse(token, user.getName());
     }
 
     @Override
@@ -52,10 +55,17 @@ public class AuthServiceImpl implements AuthService {
                     )
             );
         } catch (AuthenticationException ex) {
-            throw new BadCredentialsException("Invalid email or password");
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        String token = jwtTokenProvider.generateToken(request.getEmail());
-        return new AuthResponse(token);
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new UsernameNotFoundException("User not found")
+                );
+
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+
+        return new AuthResponse(token, user.getName());
     }
 }
