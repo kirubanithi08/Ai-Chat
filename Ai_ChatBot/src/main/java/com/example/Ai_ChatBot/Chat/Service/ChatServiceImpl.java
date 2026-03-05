@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -44,7 +45,9 @@ public class ChatServiceImpl implements ChatService {
 
 
         List<ChatMessage> history =
-                chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
+                chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
+
+        Collections.reverse(history);
 
 
         String aiReply = aiChatService.generateReply(history);
