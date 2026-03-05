@@ -14,20 +14,17 @@ import java.util.List;
 public class GeminiChatService implements AiChatService {
 
     private final GeminiClient geminiClient;
+    private final PromptBuilder promptBuilder;
 
     @Override
     public String generateReply(List<ChatMessage> history) {
 
+        String prompt = promptBuilder.buildPrompt(history);
+
         GeminiRequest request = GeminiRequest.builder()
                 .contents(List.of(
                         new GeminiRequest.Content(
-                                history.stream()
-                                        .map(m ->
-                                                new GeminiRequest.Part(
-                                                        m.getSender() + ": " + m.getContent()
-                                                )
-                                        )
-                                        .toList()
+                                List.of(new GeminiRequest.Part(prompt))
                         )
                 ))
                 .build();
