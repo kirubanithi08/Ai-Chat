@@ -39,4 +39,34 @@ public class GeminiChatService implements AiChatService {
                 .get(0)
                 .getText();
     }
+
+    @Override
+    public String generateTitle(String firstMessage) {
+
+        String prompt = """
+            Generate a short chat title (max 6 words) for this user message.
+            Only return the title.
+
+            Message:
+            """ + firstMessage;
+
+        GeminiRequest request = GeminiRequest.builder()
+                .contents(List.of(
+                        new GeminiRequest.Content(
+                                List.of(new GeminiRequest.Part(prompt))
+                        )
+                ))
+                .build();
+
+        GeminiResponse response = geminiClient.generate(request);
+
+        return response
+                .getCandidates()
+                .get(0)
+                .getContent()
+                .getParts()
+                .get(0)
+                .getText()
+                .trim();
+    }
 }

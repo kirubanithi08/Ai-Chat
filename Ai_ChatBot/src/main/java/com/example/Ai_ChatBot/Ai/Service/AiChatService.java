@@ -8,6 +8,9 @@ import java.util.List;
 public interface AiChatService {
 
     String generateReply(List<ChatMessage> history);
+
+    String generateTitle(String firstMessage);
+
 }
 
 
