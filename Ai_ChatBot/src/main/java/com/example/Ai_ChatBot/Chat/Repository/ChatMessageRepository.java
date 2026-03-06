@@ -12,6 +12,12 @@ public interface ChatMessageRepository
     List<ChatMessage> findTop10BySessionOrderByCreatedAtDesc(
             ChatSession session
     );
+
+    List<ChatMessage> findBySessionOrderByCreatedAtAsc(
+            ChatSession session
+    );
+
+
 }
 
 

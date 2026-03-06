@@ -1,10 +1,17 @@
 package com.example.Ai_ChatBot.Chat.Service;
 
-
+import com.example.Ai_ChatBot.Chat.Dto.ChatMessageResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatRequest;
 import com.example.Ai_ChatBot.Chat.Dto.ChatResponse;
+import com.example.Ai_ChatBot.Chat.Dto.ChatSessionResponse;
+
+import java.util.List;
 
 public interface ChatService {
 
     ChatResponse chat(ChatRequest request);
+
+    List<ChatSessionResponse> getUserSessions();
+
+    List<ChatMessageResponse> getMessages(Long sessionId);
 }
