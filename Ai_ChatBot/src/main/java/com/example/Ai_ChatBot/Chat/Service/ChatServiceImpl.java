@@ -14,6 +14,7 @@ import com.example.Ai_ChatBot.Common.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -64,7 +65,7 @@ public class ChatServiceImpl implements ChatService {
 
         chatMessageRepository.save(aiMessage);
 
-        // Generate session title for new chats
+       
         if ("New Chat".equals(session.getTitle())) {
             String title = aiChatService.generateTitle(request.getMessage());
             session.setTitle(title);
@@ -142,5 +143,46 @@ public class ChatServiceImpl implements ChatService {
                         .createdAt(message.getCreatedAt())
                         .build())
                 .toList();
+    }
+    @Override
+    @Transactional
+    public Flux<String> streamChat(ChatRequest request) {
+        User user = SecurityUtils.getCurrentUser();
+        ChatSession session = getOrCreateSession(request, user);
+
+        ChatMessage userMessage = ChatMessage.builder()
+                .session(session)
+                .sender(ChatMessage.Sender.USER)
+                .content(request.getMessage())
+                .createdAt(Instant.now())
+                .build();
+
+        chatMessageRepository.save(userMessage);
+
+        List<ChatMessage> history =
+                chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
+
+        Collections.reverse(history);
+
+        StringBuilder fullResponse = new StringBuilder();
+
+        return aiChatService.streamReply(history)
+                .doOnNext(fullResponse::append)
+                .doOnComplete(() -> {
+                    ChatMessage aiMessage = ChatMessage.builder()
+                            .session(session)
+                            .sender(ChatMessage.Sender.AI)
+                            .content(fullResponse.toString())
+                            .createdAt(Instant.now())
+                            .build();
+
+                    chatMessageRepository.save(aiMessage);
+
+                    if ("New Chat".equals(session.getTitle())) {
+                        String title = aiChatService.generateTitle(request.getMessage());
+                        session.setTitle(title);
+                        chatSessionRepository.save(session);
+                    }
+                });
     }
 }

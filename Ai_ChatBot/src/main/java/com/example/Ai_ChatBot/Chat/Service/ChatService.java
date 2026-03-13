@@ -4,6 +4,7 @@ import com.example.Ai_ChatBot.Chat.Dto.ChatMessageResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatRequest;
 import com.example.Ai_ChatBot.Chat.Dto.ChatResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatSessionResponse;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -14,4 +15,6 @@ public interface ChatService {
     List<ChatSessionResponse> getUserSessions();
 
     List<ChatMessageResponse> getMessages(Long sessionId);
+
+    Flux<String> streamChat(ChatRequest request);
 }

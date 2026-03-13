@@ -3,9 +3,13 @@ package com.example.Ai_ChatBot.Chat.Dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.Data;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class ChatRequest {
 
     @Schema(description = "Chat session identifier", example = "1001")
