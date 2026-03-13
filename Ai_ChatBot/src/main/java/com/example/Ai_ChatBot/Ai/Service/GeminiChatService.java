@@ -6,6 +6,7 @@ import com.example.Ai_ChatBot.Ai.dto.GeminiResponse;
 import com.example.Ai_ChatBot.Chat.Entity.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -68,5 +69,21 @@ public class GeminiChatService implements AiChatService {
                 .get(0)
                 .getText()
                 .trim();
+    }
+
+    @Override
+    public Flux<String> streamReply(List<ChatMessage> history) {
+        String prompt = promptBuilder.buildPrompt(history);
+
+        GeminiRequest request = GeminiRequest.builder()
+                .contents(List.of(
+                        new GeminiRequest.Content(
+                                List.of(new GeminiRequest.Part(prompt))
+                        )
+                ))
+                .build();
+
+        return geminiClient.streamGenerate(request)
+                .map(response -> response.getCandidates().get(0).getContent().getParts().get(0).getText());
     }
 }

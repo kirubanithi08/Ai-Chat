@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
+import reactor.core.publisher.Flux;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
@@ -40,5 +41,25 @@ public class GeminiClient {
                                 .filter(ex -> ex instanceof WebClientRequestException)
                 )
                 .block();
+    }
+
+    public Flux<GeminiResponse> streamGenerate(GeminiRequest request) {
+        return geminiWebClient
+                .post()
+                .uri(uriBuilder ->
+                        uriBuilder
+                                .path("/models/gemini-1.5-flash:streamGenerateContent")
+                                .queryParam("key", apiKey)
+                                .queryParam("alt", "sse")
+                                .build()
+                )
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToFlux(GeminiResponse.class)
+                .retryWhen(
+                        Retry.backoff(3, Duration.ofMillis(500))
+                                .filter(ex -> ex instanceof WebClientRequestException)
+                );
     }
 }
