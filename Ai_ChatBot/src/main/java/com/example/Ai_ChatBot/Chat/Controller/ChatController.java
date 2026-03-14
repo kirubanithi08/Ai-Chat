@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -40,15 +41,11 @@ public class ChatController {
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Send a message and get a streaming AI response")
-    public Flux<ServerSentEvent<String>> streamChat(
+    public SseEmitter streamChat(
             @Valid @RequestBody ChatRequest request
     ) {
         log.info("Received streaming chat request");
-        return chatService.streamChat(request)
-                .map(content -> ServerSentEvent.<String>builder()
-                        .data(content)
-                        .build())
-                .concatWith(Flux.just(ServerSentEvent.<String>builder().comment("done").build()));
+        return chatService.streamChat(request);
     }
 
     @GetMapping("/sessions")

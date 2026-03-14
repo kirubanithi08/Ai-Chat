@@ -14,8 +14,7 @@ import com.example.Ai_ChatBot.Common.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import reactor.core.publisher.Flux;
-
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +64,7 @@ public class ChatServiceImpl implements ChatService {
 
         chatMessageRepository.save(aiMessage);
 
-       
+
         if ("New Chat".equals(session.getTitle())) {
             String title = aiChatService.generateTitle(request.getMessage());
             session.setTitle(title);
@@ -144,9 +143,11 @@ public class ChatServiceImpl implements ChatService {
                         .build())
                 .toList();
     }
+
+
     @Override
     @Transactional
-    public Flux<String> streamChat(ChatRequest request) {
+    public SseEmitter streamChat(ChatRequest request) {
         User user = SecurityUtils.getCurrentUser();
         ChatSession session = getOrCreateSession(request, user);
 
@@ -156,33 +157,59 @@ public class ChatServiceImpl implements ChatService {
                 .content(request.getMessage())
                 .createdAt(Instant.now())
                 .build();
-
         chatMessageRepository.save(userMessage);
 
         List<ChatMessage> history =
                 chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
-
         Collections.reverse(history);
 
+        SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
         StringBuilder fullResponse = new StringBuilder();
 
-        return aiChatService.streamReply(history)
-                .doOnNext(fullResponse::append)
-                .doOnComplete(() -> {
-                    ChatMessage aiMessage = ChatMessage.builder()
-                            .session(session)
-                            .sender(ChatMessage.Sender.AI)
-                            .content(fullResponse.toString())
-                            .createdAt(Instant.now())
-                            .build();
+        Thread.ofVirtual().start(() -> {
+            try {
+                aiChatService.streamReply(history)
+                        .doOnNext(chunk -> {
+                            try {
+                                fullResponse.append(chunk);
+                                emitter.send(
+                                        SseEmitter.event().data(chunk)
+                                );
+                            } catch (Exception e) {
+                                emitter.completeWithError(e);
+                            }
+                        })
+                        .doOnComplete(() -> {
+                            try {
 
-                    chatMessageRepository.save(aiMessage);
+                                ChatMessage aiMessage = ChatMessage.builder()
+                                        .session(session)
+                                        .sender(ChatMessage.Sender.AI)
+                                        .content(fullResponse.toString())
+                                        .createdAt(Instant.now())
+                                        .build();
+                                chatMessageRepository.save(aiMessage);
 
-                    if ("New Chat".equals(session.getTitle())) {
-                        String title = aiChatService.generateTitle(request.getMessage());
-                        session.setTitle(title);
-                        chatSessionRepository.save(session);
-                    }
-                });
+
+                                if ("New Chat".equals(session.getTitle())) {
+                                    String title = aiChatService.generateTitle(request.getMessage());
+                                    session.setTitle(title);
+                                    chatSessionRepository.save(session);
+                                }
+
+                                emitter.complete();
+                            } catch (Exception e) {
+                                emitter.completeWithError(e);
+                            }
+                        })
+                        .doOnError(emitter::completeWithError)
+                        .subscribe();
+
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
     }
 }
