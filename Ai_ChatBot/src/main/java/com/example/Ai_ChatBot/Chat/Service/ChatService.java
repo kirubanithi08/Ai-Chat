@@ -16,5 +16,5 @@ public interface ChatService {
 
     List<ChatMessageResponse> getMessages(Long sessionId);
 
-    Flux<String> streamChat(ChatRequest request);
+    SseEmitter streamChat(ChatRequest request); 
 }
