@@ -5,12 +5,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 
 @Component
-public class JwtAccessDeniedHandler
-        implements AccessDeniedHandler {
+public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     @Override
     public void handle(
@@ -19,9 +17,16 @@ public class JwtAccessDeniedHandler
             AccessDeniedException accessDeniedException
     ) throws IOException {
 
+        String origin = request.getHeader("Origin");
+        if (origin != null) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+            response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept");
+            response.setHeader("Vary", "Origin");
+        }
+
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
-
         response.getWriter().write("""
             {
               "status": 403,
@@ -31,4 +36,3 @@ public class JwtAccessDeniedHandler
         """);
     }
 }
-
