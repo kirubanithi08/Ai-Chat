@@ -18,29 +18,27 @@ public class GeminiChatService implements AiChatService {
     private final GeminiClient geminiClient;
     private final PromptBuilder promptBuilder;
 
-    @Override
-    public String generateReply(List<ChatMessage> history) {
-        GeminiRequest request = promptBuilder.buildRequest(history);
-        return extractText(geminiClient.generate(request));
-    }
+  @Override
+public String generateReply(List<ChatMessage> history) {
+    GeminiRequest request = promptBuilder.buildRequest(history);
+    return extractText(geminiClient.generate(request).block());
+}
 
-    @Override
-    public String generateTitle(String firstMessage) {
-        String prompt = """
-                Generate a short chat title (max 6 words) for this user message.
-                Only return the title, no punctuation.
-
-                Message: %s
-                """.formatted(firstMessage);
-
-        GeminiRequest request = GeminiRequest.builder()
-                .contents(List.of(new GeminiRequest.Content(
-                        "user", List.of(new GeminiRequest.Part(prompt))
-                )))
-                .build();
-
-        return extractText(geminiClient.generate(request)).trim();
-    }
+@Override
+public Mono<String> generateTitle(String firstMessage) { 
+    String prompt = """
+            Generate a short chat title (max 6 words) for this user message.
+            Only return the title, no punctuation.
+            Message: %s
+            """.formatted(firstMessage);
+    GeminiRequest request = GeminiRequest.builder()
+            .contents(List.of(new GeminiRequest.Content(
+                    "user", List.of(new GeminiRequest.Part(prompt))
+            )))
+            .build();
+    return geminiClient.generate(request)
+            .map(response -> extractText(response).trim()); 
+}
 
     @Override
     public Flux<String> streamReply(List<ChatMessage> history) {
