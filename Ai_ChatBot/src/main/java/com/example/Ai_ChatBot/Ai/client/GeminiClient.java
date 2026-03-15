@@ -28,22 +28,22 @@ public class GeminiClient {
     @Value("${gemini.model.stream}")
     private String streamModel;
 
-    public GeminiResponse generate(GeminiRequest request) {
-        return geminiWebClient
-                .post()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/models/{model}:generateContent")
-                        .queryParam("key", apiKey)
-                        .build(defaultModel)
-                )
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(GeminiResponse.class)
-                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
-                        .filter(ex -> ex instanceof WebClientRequestException))
-                .block();
-    }
+    public Mono<GeminiResponse> generate(GeminiRequest request) {
+    return geminiWebClient
+            .post()
+            .uri(uriBuilder -> uriBuilder
+                    .path("/models/{model}:generateContent")
+                    .queryParam("key", apiKey)
+                    .build(defaultModel)
+            )
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono(GeminiResponse.class)
+            .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
+                    .filter(ex -> ex instanceof WebClientRequestException));
+   
+}
 
     public Flux<GeminiResponse> streamGenerate(GeminiRequest request) {
         return geminiWebClient
