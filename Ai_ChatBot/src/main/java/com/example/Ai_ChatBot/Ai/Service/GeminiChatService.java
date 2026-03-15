@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.util.List;
 
 @Slf4j
@@ -25,7 +27,7 @@ public String generateReply(List<ChatMessage> history) {
 }
 
 @Override
-public Mono<String> generateTitle(String firstMessage) { 
+public Mono<String> generateTitle(String firstMessage) {
     String prompt = """
             Generate a short chat title (max 6 words) for this user message.
             Only return the title, no punctuation.
