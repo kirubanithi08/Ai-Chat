@@ -6,14 +6,13 @@ import com.example.Ai_ChatBot.Chat.Entity.ChatSession;
 import com.example.Ai_ChatBot.Chat.Repository.ChatMessageRepository;
 import com.example.Ai_ChatBot.Chat.Repository.ChatSessionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
-
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatPersistenceService {
@@ -23,8 +22,8 @@ public class ChatPersistenceService {
     private final AiChatService aiChatService;
 
    
-    public Mono<Void> saveAiMessageAndTitle(ChatSession session, 
-                                             String aiReply, 
+    public Mono<Void> saveAiMessageAndTitle(ChatSession session,
+                                             String aiReply,
                                              String userMessage) {
         return Mono.fromCallable(() -> {
                    
@@ -35,19 +34,30 @@ public class ChatPersistenceService {
                             .createdAt(Instant.now())
                             .build();
                     chatMessageRepository.save(aiMessage);
+                    log.debug("AI message saved for session {}", session.getId());
                     return session;
                 })
-                .subscribeOn(Schedulers.boundedElastic()) 
+                .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(s -> {
+                   
                     if (!"New Chat".equals(s.getTitle())) {
+                        log.debug("Session {} already has title, skipping", s.getId());
                         return Mono.empty();
                     }
+                   
                     return aiChatService.generateTitle(userMessage)
                             .flatMap(title -> Mono.fromCallable(() -> {
                                 s.setTitle(title);
                                 chatSessionRepository.save(s);
+                                log.debug("Title '{}' saved for session {}", title, s.getId());
                                 return s;
-                            }).subscribeOn(Schedulers.boundedElastic())); 
+                            }).subscribeOn(Schedulers.boundedElastic()));
+                })
+               
+                .onErrorResume(ex -> {
+                    log.error("Failed to save AI message or title for session {}: {}",
+                            session.getId(), ex.getMessage());
+                    return Mono.empty();
                 })
                 .then();
     }
