@@ -3,17 +3,19 @@ package com.example.Ai_ChatBot.Ai.client;
 import com.example.Ai_ChatBot.Ai.dto.GeminiRequest;
 import com.example.Ai_ChatBot.Ai.dto.GeminiResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
-
 import java.time.Duration;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GeminiClient {
@@ -30,21 +32,32 @@ public class GeminiClient {
     private String streamModel;
 
     public Mono<GeminiResponse> generate(GeminiRequest request) {
-    return geminiWebClient
-            .post()
-            .uri(uriBuilder -> uriBuilder
-                    .path("/models/{model}:generateContent")
-                    .queryParam("key", apiKey)
-                    .build(defaultModel)
-            )
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(request)
-            .retrieve()
-            .bodyToMono(GeminiResponse.class)
-            .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
-                    .filter(ex -> ex instanceof WebClientRequestException));
-   
-}
+        return geminiWebClient
+                .post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/models/{model}:generateContent")
+                        .queryParam("key", apiKey)
+                        .build(defaultModel)
+                )
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(GeminiResponse.class)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                        .filter(ex -> {
+                           
+                            if (ex instanceof WebClientRequestException) return true;
+                            
+                            if (ex instanceof WebClientResponseException responseEx) {
+                                return responseEx.getStatusCode().value() == 429;
+                            }
+                            return false;
+                        })
+                        .onRetryExhaustedThrow((spec, signal) ->
+                                new RuntimeException("Gemini API unavailable. Please try again later.")
+                        )
+                );
+    }
 
     public Flux<GeminiResponse> streamGenerate(GeminiRequest request) {
         return geminiWebClient
@@ -59,7 +72,23 @@ public class GeminiClient {
                 .bodyValue(request)
                 .retrieve()
                 .bodyToFlux(GeminiResponse.class)
-                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
-                        .filter(ex -> ex instanceof WebClientRequestException));
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                        .filter(ex -> {
+                            
+                            if (ex instanceof WebClientRequestException) return true;
+                           
+                            if (ex instanceof WebClientResponseException responseEx) {
+                                boolean shouldRetry = responseEx.getStatusCode().value() == 429;
+                                if (shouldRetry) {
+                                    log.warn("Gemini rate limit hit, retrying...");
+                                }
+                                return shouldRetry;
+                            }
+                            return false;
+                        })
+                        .onRetryExhaustedThrow((spec, signal) ->
+                                new RuntimeException("Gemini API rate limit exceeded. Please try again later.")
+                        )
+                );
     }
 }
