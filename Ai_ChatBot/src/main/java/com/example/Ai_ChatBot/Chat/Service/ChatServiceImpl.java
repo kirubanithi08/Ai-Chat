@@ -147,49 +147,53 @@ public class ChatServiceImpl implements ChatService {
 
 
     @Override
-    public SseEmitter streamChat(ChatRequest request) {
-        User user = SecurityUtils.getCurrentUser();
-        ChatSession session = getOrCreateSession(request, user);
+public SseEmitter streamChat(ChatRequest request) {
+    User user = SecurityUtils.getCurrentUser();
+    ChatSession session = getOrCreateSession(request, user);
 
-        ChatMessage userMessage = ChatMessage.builder()
-                .session(session)
-                .sender(ChatMessage.Sender.USER)
-                .content(request.getMessage())
-                .createdAt(Instant.now())
-                .build();
-        chatMessageRepository.save(userMessage);
+    ChatMessage userMessage = ChatMessage.builder()
+            .session(session)
+            .sender(ChatMessage.Sender.USER)
+            .content(request.getMessage())
+            .createdAt(Instant.now())
+            .build();
+    chatMessageRepository.save(userMessage);
 
-        List<ChatMessage> history =
-                chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
-        Collections.reverse(history);
+    List<ChatMessage> history =
+            chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
+    Collections.reverse(history);
 
-        SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
-        StringBuffer fullResponse = new StringBuffer();
+    SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
+    StringBuffer fullResponse = new StringBuffer();
 
-        Thread.ofVirtual().start(() -> {
-            aiChatService.streamReply(history)
-                    .doOnNext(chunk -> {
-                        try {
-                            fullResponse.append(chunk);
-                            emitter.send(SseEmitter.event().data(chunk));
-                        } catch (Exception e) {
-                            emitter.completeWithError(e);
+    Thread.ofVirtual().start(() -> {
+        aiChatService.streamReply(history)
+                .doOnNext(chunk -> {
+                    try {
+                        fullResponse.append(chunk);
+                        emitter.send(SseEmitter.event().data(chunk));
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                })
+                .doOnComplete(() -> {
+                   
+                    chatPersistenceService.saveAiMessageAndTitle(
+                            session, fullResponse.toString(), request.getMessage()
+                    )
+                    .subscribe(
+                        null,
+                        err -> log.error("Failed to save AI message/title", err),
+                        () -> {
+                            try { emitter.complete(); } 
+                            catch (Exception e) { log.error("Emitter complete error", e); }
                         }
-                    })
-                    .doOnComplete(() -> {
-                        try {
-                            chatPersistenceService.saveAiMessageAndTitle(
-                                    session, fullResponse.toString(), request.getMessage()
-                            );
-                            emitter.complete();
-                        } catch (Exception e) {
-                            emitter.completeWithError(e);
-                        }
-                    })
-                    .doOnError(emitter::completeWithError)
-                    .subscribe();
-        });
+                    );
+                })
+                .doOnError(emitter::completeWithError)
+                .subscribe();
+    });
 
-        return emitter;
-    }
+    return emitter;
+}
 }
