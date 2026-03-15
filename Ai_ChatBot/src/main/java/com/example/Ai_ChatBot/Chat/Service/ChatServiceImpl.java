@@ -26,6 +26,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final AiChatService aiChatService;
+    private final ChatPersistenceService chatPersistenceService;
 
     @Override
     @Transactional
@@ -146,7 +147,6 @@ public class ChatServiceImpl implements ChatService {
 
 
     @Override
-    @Transactional
     public SseEmitter streamChat(ChatRequest request) {
         User user = SecurityUtils.getCurrentUser();
         ChatSession session = getOrCreateSession(request, user);
@@ -164,50 +164,30 @@ public class ChatServiceImpl implements ChatService {
         Collections.reverse(history);
 
         SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
-        StringBuilder fullResponse = new StringBuilder();
+        StringBuffer fullResponse = new StringBuffer();
 
         Thread.ofVirtual().start(() -> {
-            try {
-                aiChatService.streamReply(history)
-                        .doOnNext(chunk -> {
-                            try {
-                                fullResponse.append(chunk);
-                                emitter.send(
-                                        SseEmitter.event().data(chunk)
-                                );
-                            } catch (Exception e) {
-                                emitter.completeWithError(e);
-                            }
-                        })
-                        .doOnComplete(() -> {
-                            try {
-
-                                ChatMessage aiMessage = ChatMessage.builder()
-                                        .session(session)
-                                        .sender(ChatMessage.Sender.AI)
-                                        .content(fullResponse.toString())
-                                        .createdAt(Instant.now())
-                                        .build();
-                                chatMessageRepository.save(aiMessage);
-
-
-                                if ("New Chat".equals(session.getTitle())) {
-                                    String title = aiChatService.generateTitle(request.getMessage());
-                                    session.setTitle(title);
-                                    chatSessionRepository.save(session);
-                                }
-
-                                emitter.complete();
-                            } catch (Exception e) {
-                                emitter.completeWithError(e);
-                            }
-                        })
-                        .doOnError(emitter::completeWithError)
-                        .subscribe();
-
-            } catch (Exception e) {
-                emitter.completeWithError(e);
-            }
+            aiChatService.streamReply(history)
+                    .doOnNext(chunk -> {
+                        try {
+                            fullResponse.append(chunk);
+                            emitter.send(SseEmitter.event().data(chunk));
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .doOnComplete(() -> {
+                        try {
+                            chatPersistenceService.saveAiMessageAndTitle(
+                                    session, fullResponse.toString(), request.getMessage()
+                            );
+                            emitter.complete();
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .doOnError(emitter::completeWithError)
+                    .subscribe();
         });
 
         return emitter;

@@ -5,7 +5,6 @@ import com.example.Ai_ChatBot.Chat.Dto.ChatRequest;
 import com.example.Ai_ChatBot.Chat.Dto.ChatResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatSessionResponse;
 import com.example.Ai_ChatBot.Common.ApiResponse;
-import com.example.Ai_ChatBot.Chat.Entity.ChatSession;
 import com.example.Ai_ChatBot.Chat.Service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,11 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import reactor.core.publisher.Flux;
-
 import java.util.List;
 
 @RestController
