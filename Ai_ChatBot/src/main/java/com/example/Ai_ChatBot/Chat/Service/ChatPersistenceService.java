@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
 @Service
 @RequiredArgsConstructor
 public class ChatPersistenceService {
@@ -19,20 +22,33 @@ public class ChatPersistenceService {
     private final ChatSessionRepository chatSessionRepository;
     private final AiChatService aiChatService;
 
-    @Transactional
-    public void saveAiMessageAndTitle(ChatSession session, String aiReply, String userMessage) {
-        ChatMessage aiMessage = ChatMessage.builder()
-                .session(session)
-                .sender(ChatMessage.Sender.AI)
-                .content(aiReply)
-                .createdAt(Instant.now())
-                .build();
-        chatMessageRepository.save(aiMessage);
-
-        if ("New Chat".equals(session.getTitle())) {
-            String title = aiChatService.generateTitle(userMessage);
-            session.setTitle(title);
-            chatSessionRepository.save(session);
-        }
+   
+    public Mono<Void> saveAiMessageAndTitle(ChatSession session, 
+                                             String aiReply, 
+                                             String userMessage) {
+        return Mono.fromCallable(() -> {
+                   
+                    ChatMessage aiMessage = ChatMessage.builder()
+                            .session(session)
+                            .sender(ChatMessage.Sender.AI)
+                            .content(aiReply)
+                            .createdAt(Instant.now())
+                            .build();
+                    chatMessageRepository.save(aiMessage);
+                    return session;
+                })
+                .subscribeOn(Schedulers.boundedElastic()) 
+                .flatMap(s -> {
+                    if (!"New Chat".equals(s.getTitle())) {
+                        return Mono.empty();
+                    }
+                    return aiChatService.generateTitle(userMessage)
+                            .flatMap(title -> Mono.fromCallable(() -> {
+                                s.setTitle(title);
+                                chatSessionRepository.save(s);
+                                return s;
+                            }).subscribeOn(Schedulers.boundedElastic())); 
+                })
+                .then();
     }
 }
