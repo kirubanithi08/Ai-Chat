@@ -1,32 +1,39 @@
 package com.example.Ai_ChatBot.Ai.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 import java.util.List;
 
-@Getter
-@Setter
+@Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GeminiRequest {
 
+    private SystemInstruction systemInstruction;
     private List<Content> contents;
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
+    @Data
     @NoArgsConstructor
-    public static class Content {
+    @AllArgsConstructor
+    public static class SystemInstruction {
         private List<Part> parts;
     }
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
+    @Data
     @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Content {
+        private String role;
+        private List<Part> parts;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Part {
         private String text;
     }
 }
-
