@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -36,9 +35,7 @@ public class ChatServiceImpl implements ChatService {
     public ChatResponse chat(ChatRequest request) {
 
         User user = SecurityUtils.getCurrentUser();
-
         ChatSession session = getOrCreateSession(request, user);
-
 
         ChatMessage userMessage = ChatMessage.builder()
                 .session(session)
@@ -46,18 +43,13 @@ public class ChatServiceImpl implements ChatService {
                 .content(request.getMessage())
                 .createdAt(Instant.now())
                 .build();
-
         chatMessageRepository.save(userMessage);
-
 
         List<ChatMessage> history =
                 chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
-
         Collections.reverse(history);
 
-
         String aiReply = aiChatService.generateReply(history);
-
 
         ChatMessage aiMessage = ChatMessage.builder()
                 .session(session)
@@ -65,15 +57,13 @@ public class ChatServiceImpl implements ChatService {
                 .content(aiReply)
                 .createdAt(Instant.now())
                 .build();
-
         chatMessageRepository.save(aiMessage);
 
-
         if ("New Chat".equals(session.getTitle())) {
-    String title = aiChatService.generateTitle(request.getMessage()).block();
-    session.setTitle(title);
-    chatSessionRepository.save(session);
-}
+            String title = aiChatService.generateTitle(request.getMessage()).block();
+            session.setTitle(title);
+            chatSessionRepository.save(session);
+        }
 
         return ChatResponse.builder()
                 .sessionId(session.getId())
@@ -85,7 +75,6 @@ public class ChatServiceImpl implements ChatService {
     private ChatSession getOrCreateSession(ChatRequest request, User user) {
 
         if (request.getSessionId() != null) {
-
             ChatSession session = chatSessionRepository
                     .findById(request.getSessionId())
                     .orElseThrow(() -> new IllegalStateException("Chat session not found"));
@@ -93,7 +82,6 @@ public class ChatServiceImpl implements ChatService {
             if (!session.getUser().getId().equals(user.getId())) {
                 throw new IllegalStateException("Access denied to chat session");
             }
-
             return session;
         }
 
@@ -102,7 +90,6 @@ public class ChatServiceImpl implements ChatService {
                 .user(user)
                 .createdAt(Instant.now())
                 .build();
-
         return chatSessionRepository.save(session);
     }
 
@@ -111,7 +98,6 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatSessionResponse> getUserSessions() {
 
         User user = SecurityUtils.getCurrentUser();
-
         return chatSessionRepository
                 .findByUserIdOrderByCreatedAtDesc(user.getId())
                 .stream()
@@ -128,7 +114,6 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatMessageResponse> getMessages(Long sessionId) {
 
         User user = SecurityUtils.getCurrentUser();
-
         ChatSession session = chatSessionRepository
                 .findById(sessionId)
                 .orElseThrow(() -> new IllegalStateException("Session not found"));
@@ -148,74 +133,98 @@ public class ChatServiceImpl implements ChatService {
                 .toList();
     }
 
+    @Override
+    public SseEmitter streamChat(ChatRequest request) {
+        User user = SecurityUtils.getCurrentUser();
+        ChatSession session = getOrCreateSession(request, user);
 
-   @Override
-public SseEmitter streamChat(ChatRequest request) {
-    User user = SecurityUtils.getCurrentUser();
-    ChatSession session = getOrCreateSession(request, user);
+        ChatMessage userMessage = ChatMessage.builder()
+                .session(session)
+                .sender(ChatMessage.Sender.USER)
+                .content(request.getMessage())
+                .createdAt(Instant.now())
+                .build();
+        chatMessageRepository.save(userMessage);
 
-    ChatMessage userMessage = ChatMessage.builder()
-            .session(session)
-            .sender(ChatMessage.Sender.USER)
-            .content(request.getMessage())
-            .createdAt(Instant.now())
-            .build();
-    chatMessageRepository.save(userMessage);
+        List<ChatMessage> history =
+                chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
+        Collections.reverse(history);
 
-    List<ChatMessage> history =
-            chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(session);
-    Collections.reverse(history);
+        SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
+        StringBuffer fullResponse = new StringBuffer();
 
-    SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
-    StringBuffer fullResponse = new StringBuffer();
+        Thread.ofVirtual().start(() -> {
 
-    Thread.ofVirtual().start(() -> {
-        try {
-           
-            emitter.send(SseEmitter.event()
-                    .name("session")
-                    .data(session.getId().toString()));
-        } catch (Exception e) {
-            emitter.completeWithError(e);
-            return;
-        }
+            
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("session")
+                        .data(session.getId().toString()));
+            } catch (Exception e) {
+                log.error("Failed to send session event", e);
+                emitter.completeWithError(e);
+                return;
+            }
 
-        aiChatService.streamReply(history)
-                .doOnNext(chunk -> {
-                    try {
-                        fullResponse.append(chunk);
-                        
-                        emitter.send(SseEmitter.event()
-                                .name("message")
-                                .data(chunk));
-                    } catch (Exception e) {
-                        emitter.completeWithError(e);
-                    }
-                })
-                .doOnComplete(() -> {
-                    chatPersistenceService.saveAiMessageAndTitle(
-                            session, fullResponse.toString(), request.getMessage()
-                    )
-                    .subscribe(
-                        null,
-                        err -> log.error("Failed to save AI message/title", err),
-                        () -> {
-                            try {
-                               
-                                emitter.send(SseEmitter.event()
-                                        .name("done")
-                                        .data("true"));
-                                emitter.complete();
-                            } catch (Exception e) {
-                                log.error("Emitter complete error", e);
-                            }
+            aiChatService.streamReply(history)
+                    .doOnNext(chunk -> {
+                        try {
+                            fullResponse.append(chunk);
+                           
+                            emitter.send(SseEmitter.event()
+                                    .name("message")
+                                    .data(chunk));
+                        } catch (Exception e) {
+                            log.error("Failed to send chunk", e);
+                            emitter.completeWithError(e);
                         }
-                    );
-                })
-                .doOnError(emitter::completeWithError)
-                .subscribe();
-    });
+                    })
+                    .doOnComplete(() -> {
+                        chatPersistenceService.saveAiMessageAndTitle(
+                                session, fullResponse.toString(), request.getMessage()
+                        )
+                        .subscribe(
+                            null,
+                            err -> {
+                                log.error("Failed to save AI message/title", err);
+                                
+                                try {
+                                    emitter.send(SseEmitter.event()
+                                            .name("error")
+                                            .data("Failed to save message. Please try again."));
+                                    emitter.complete();
+                                } catch (Exception e) {
+                                    log.error("Emitter error event failed", e);
+                                }
+                            },
+                            () -> {
+                                try {
+                                   
+                                    emitter.send(SseEmitter.event()
+                                            .name("done")
+                                            .data("true"));
+                                    emitter.complete();
+                                } catch (Exception e) {
+                                    log.error("Emitter complete error", e);
+                                }
+                            }
+                        );
+                    })
+                    .doOnError(err -> {
+                        log.error("Stream error from Gemini", err);
+                       
+                        try {
+                            emitter.send(SseEmitter.event()
+                                    .name("error")
+                                    .data("AI service error. Please try again."));
+                            emitter.complete();
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .subscribe();
+        });
 
-    return emitter;
-}
+        return emitter;
+    }
 }
