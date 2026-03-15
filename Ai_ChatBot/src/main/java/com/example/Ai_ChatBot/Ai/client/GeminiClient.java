@@ -22,44 +22,43 @@ public class GeminiClient {
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    public GeminiResponse generate(GeminiRequest request) {
+    @Value("${gemini.model.default}")
+    private String defaultModel;
 
+    @Value("${gemini.model.stream}")
+    private String streamModel;
+
+    public GeminiResponse generate(GeminiRequest request) {
         return geminiWebClient
                 .post()
-                .uri(uriBuilder ->
-                        uriBuilder
-                                .path("/models/gemini-3-flash-preview:generateContent")
-                                .queryParam("key", apiKey)
-                                .build()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/models/{model}:generateContent")
+                        .queryParam("key", apiKey)
+                        .build(defaultModel)
                 )
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(GeminiResponse.class)
-                .retryWhen(
-                        Retry.backoff(3, Duration.ofMillis(500))
-                                .filter(ex -> ex instanceof WebClientRequestException)
-                )
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
+                        .filter(ex -> ex instanceof WebClientRequestException))
                 .block();
     }
 
     public Flux<GeminiResponse> streamGenerate(GeminiRequest request) {
         return geminiWebClient
                 .post()
-                .uri(uriBuilder ->
-                        uriBuilder
-                                .path("/models/gemini-1.5-flash:streamGenerateContent")
-                                .queryParam("key", apiKey)
-                                .queryParam("alt", "sse")
-                                .build()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/models/{model}:streamGenerateContent")
+                        .queryParam("key", apiKey)
+                        .queryParam("alt", "sse")
+                        .build(streamModel)
                 )
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
                 .retrieve()
                 .bodyToFlux(GeminiResponse.class)
-                .retryWhen(
-                        Retry.backoff(3, Duration.ofMillis(500))
-                                .filter(ex -> ex instanceof WebClientRequestException)
-                );
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
+                        .filter(ex -> ex instanceof WebClientRequestException));
     }
 }
