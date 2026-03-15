@@ -1,5 +1,4 @@
 package com.example.Ai_ChatBot.Chat.Service;
-
 import com.example.Ai_ChatBot.Ai.Service.AiChatService;
 import com.example.Ai_ChatBot.Chat.Dto.ChatRequest;
 import com.example.Ai_ChatBot.Chat.Dto.ChatResponse;
@@ -16,29 +15,25 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-
+import reactor.core.publisher.Mono; 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ChatServiceImplTest {
-
     @Mock
     private ChatMessageRepository chatMessageRepository;
     @Mock
     private ChatSessionRepository chatSessionRepository;
     @Mock
     private AiChatService aiChatService;
-
     @InjectMocks
     private ChatServiceImpl chatService;
-
     private User user;
     private ChatSession session;
     private ChatRequest chatRequest;
@@ -54,14 +49,11 @@ class ChatServiceImplTest {
     void chat_Success_NewSession() {
         try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
             mockedSecurity.when(SecurityUtils::getCurrentUser).thenReturn(user);
-            
             when(chatSessionRepository.save(any(ChatSession.class))).thenReturn(session);
             when(chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(any())).thenReturn(new ArrayList<>());
             when(aiChatService.generateReply(anyList())).thenReturn("Hi there!");
-            when(aiChatService.generateTitle(anyString())).thenReturn("Greeting");
-
+            when(aiChatService.generateTitle(anyString())).thenReturn(Mono.just("Greeting")); 
             ChatResponse response = chatService.chat(chatRequest);
-
             assertNotNull(response);
             assertEquals("Hi there!", response.getAiResponse());
             verify(chatSessionRepository, atLeastOnce()).save(any(ChatSession.class));
@@ -74,13 +66,10 @@ class ChatServiceImplTest {
         chatRequest.setSessionId(1L);
         try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
             mockedSecurity.when(SecurityUtils::getCurrentUser).thenReturn(user);
-            
             when(chatSessionRepository.findById(1L)).thenReturn(Optional.of(session));
             when(chatMessageRepository.findTop10BySessionOrderByCreatedAtDesc(any())).thenReturn(new ArrayList<>());
             when(aiChatService.generateReply(anyList())).thenReturn("How can I help?");
-
             ChatResponse response = chatService.chat(chatRequest);
-
             assertNotNull(response);
             assertEquals("How can I help?", response.getAiResponse());
             verify(chatMessageRepository, times(2)).save(any(ChatMessage.class));
