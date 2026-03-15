@@ -9,8 +9,8 @@ public interface AiChatService {
 
     String generateReply(List<ChatMessage> history);
 
-    String generateTitle(String firstMessage);
-
+   Mono<String> generateTitle(String firstMessage); 
+    
     Flux<String> streamReply(List<ChatMessage> history);
 }
 
