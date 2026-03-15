@@ -149,7 +149,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
 
-    @Override
+   @Override
 public SseEmitter streamChat(ChatRequest request) {
     User user = SecurityUtils.getCurrentUser();
     ChatSession session = getOrCreateSession(request, user);
@@ -170,17 +170,29 @@ public SseEmitter streamChat(ChatRequest request) {
     StringBuffer fullResponse = new StringBuffer();
 
     Thread.ofVirtual().start(() -> {
+        try {
+           
+            emitter.send(SseEmitter.event()
+                    .name("session")
+                    .data(session.getId().toString()));
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+            return;
+        }
+
         aiChatService.streamReply(history)
                 .doOnNext(chunk -> {
                     try {
                         fullResponse.append(chunk);
-                        emitter.send(SseEmitter.event().data(chunk));
+                        
+                        emitter.send(SseEmitter.event()
+                                .name("message")
+                                .data(chunk));
                     } catch (Exception e) {
                         emitter.completeWithError(e);
                     }
                 })
                 .doOnComplete(() -> {
-                   
                     chatPersistenceService.saveAiMessageAndTitle(
                             session, fullResponse.toString(), request.getMessage()
                     )
@@ -188,8 +200,15 @@ public SseEmitter streamChat(ChatRequest request) {
                         null,
                         err -> log.error("Failed to save AI message/title", err),
                         () -> {
-                            try { emitter.complete(); } 
-                            catch (Exception e) { log.error("Emitter complete error", e); }
+                            try {
+                               
+                                emitter.send(SseEmitter.event()
+                                        .name("done")
+                                        .data("true"));
+                                emitter.complete();
+                            } catch (Exception e) {
+                                log.error("Emitter complete error", e);
+                            }
                         }
                     );
                 })
