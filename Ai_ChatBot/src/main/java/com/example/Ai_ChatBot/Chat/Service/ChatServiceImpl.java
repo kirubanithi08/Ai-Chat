@@ -67,10 +67,10 @@ public class ChatServiceImpl implements ChatService {
 
 
         if ("New Chat".equals(session.getTitle())) {
-            String title = aiChatService.generateTitle(request.getMessage());
-            session.setTitle(title);
-            chatSessionRepository.save(session);
-        }
+    String title = aiChatService.generateTitle(request.getMessage()).block();
+    session.setTitle(title);
+    chatSessionRepository.save(session);
+}
 
         return ChatResponse.builder()
                 .sessionId(session.getId())
