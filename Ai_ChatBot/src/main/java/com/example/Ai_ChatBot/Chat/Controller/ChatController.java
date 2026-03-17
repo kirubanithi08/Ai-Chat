@@ -13,8 +13,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 import java.util.List;
 
 @RestController
@@ -38,10 +40,11 @@ public class ChatController {
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Send a message and get a streaming AI response")
     public SseEmitter streamChat(
-            @Valid @RequestBody ChatRequest request
+            @Valid @RequestBody ChatRequest request,
+            Authentication authentication         
     ) {
-        log.info("Received streaming chat request");
-        return chatService.streamChat(request);
+        log.info("Received streaming chat request — authenticated: {}", authentication != null);
+        return chatService.streamChat(request, authentication);
     }
 
     @GetMapping("/sessions")
