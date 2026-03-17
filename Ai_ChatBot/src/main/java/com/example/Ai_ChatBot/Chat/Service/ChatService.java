@@ -15,5 +15,5 @@ public interface ChatService {
 
     List<ChatMessageResponse> getMessages(Long sessionId);
 
-    SseEmitter streamChat(ChatRequest request);
+    SseEmitter streamChat(ChatRequest request, Authentication authentication);
 }
