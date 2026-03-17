@@ -4,16 +4,13 @@ import com.example.Ai_ChatBot.Chat.Dto.ChatMessageResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatRequest;
 import com.example.Ai_ChatBot.Chat.Dto.ChatResponse;
 import com.example.Ai_ChatBot.Chat.Dto.ChatSessionResponse;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 
 public interface ChatService {
-
     ChatResponse chat(ChatRequest request);
-
     List<ChatSessionResponse> getUserSessions();
-
     List<ChatMessageResponse> getMessages(Long sessionId);
-
     SseEmitter streamChat(ChatRequest request, Authentication authentication);
 }
