@@ -19,7 +19,6 @@ A production-ready Spring Boot backend for an AI Chatbot powered by Google Gemin
 - Spring Security (JWT)
 - Spring Data JPA (PostgreSQL)
 - Spring WebFlux (for streaming)
-- Bucket4j (Rate Limiting)
 - SpringDoc OpenAPI (Swagger)
 - Lombok
 
